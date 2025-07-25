@@ -44,18 +44,18 @@ if uploaded_file:
 
     # Fill Tags and Notes from parent
     if 'Parent Task' in df.columns and 'Tags' in df.columns and 'Notes' in df.columns:
-        parent_info = df.set_index('Name')[['Tags', 'Notes']].to_dict('index')
+        parent_lookup = df.set_index('Name')[['Tags', 'Notes']].to_dict('index')
         for idx, row in df.iterrows():
-            parent_name = row['Parent Task']
-            if pd.notna(parent_name) and parent_name in parent_info:
-                parent_tags = parent_info[parent_name].get('Tags', '')
-                parent_notes = parent_info[parent_name].get('Notes', '')
+            parent = row.get('Parent Task')
+            if pd.notna(parent) and parent in parent_lookup:
+                parent_tags = parent_lookup[parent].get('Tags') or ''
+                parent_notes = parent_lookup[parent].get('Notes') or ''
 
-                child_tags = row['Tags'] if pd.notna(row['Tags']) else ''
-                child_notes = row['Notes'] if pd.notna(row['Notes']) else ''
+                child_tags = row.get('Tags') or ''
+                child_notes = row.get('Notes') or ''
 
-                combined_tags = ', '.join(filter(None, [child_tags, parent_tags]))
-                combined_notes = '\n'.join(filter(None, [child_notes, parent_notes]))
+                combined_tags = ', '.join(filter(None, [child_tags.strip(), parent_tags.strip()]))
+                combined_notes = '\n'.join(filter(None, [child_notes.strip(), parent_notes.strip()]))
 
                 df.at[idx, 'Tags'] = combined_tags
                 df.at[idx, 'Notes'] = combined_notes
