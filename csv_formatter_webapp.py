@@ -1,11 +1,13 @@
 import re
 import pandas as pd
 import streamlit as st
-from io import StringIO
+from io import StringIO, BytesIO
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
 
-st.set_page_config(page_title="CSV Formatter", layout="centered")
-st.title("📄 CSV Formatter Tool")
-st.markdown("Upload your .csv file and download the cleaned version.")
+st.set_page_config(page_title="Local Binding Formatter", layout="centered")
+st.title("📄  Local Binding Asana to Production Formatter")
+st.markdown("Upload your `.csv` file below. The app will clean the data and show a preview before download.")
 
 uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
 
@@ -24,13 +26,13 @@ if uploaded_file:
     def split_name_quantity(name):
         if pd.isna(name):
             return pd.Series([None, None])
-        match = re.search(r'(\d+)[xX]\s*(.*)', name)
+        match = re.search(r'^(\d+)[xX]\s*(.*)', name)
         if match:
             return pd.Series([match.group(2).strip(), int(match.group(1))])
-        match = re.search(r'(.*?)(\d+)[xX]', name)
+        match = re.search(r'(.*?)(\d+)[xX]$', name)
         if match:
             return pd.Series([match.group(1).strip(), int(match.group(2))])
-        return pd.Series([name.strip(), 1])  # Default quantity = 1
+        return pd.Series([name.strip(), None])  # Leave quantity blank if no number
 
     if 'Name' in df.columns:
         df[['Name', 'Quantity']] = df['Name'].apply(split_name_quantity)
@@ -41,6 +43,10 @@ if uploaded_file:
         cols.insert(cols.index('Name') + 1, cols.pop(cols.index('Quantity')))
         df = df[cols]
 
+    # Preview cleaned data
+    st.subheader("🔍 Preview of Cleaned Data")
+    st.dataframe(df, use_container_width=True)
+
     # Create downloadable CSV
     csv = df.to_csv(index=False)
     st.download_button(
@@ -48,4 +54,41 @@ if uploaded_file:
         data=csv,
         file_name="cleaned_output.csv",
         mime="text/csv"
+    )
+
+    # Create downloadable XLSX with formatting
+    output = BytesIO()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Formatted Data"
+
+    # Header styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="4F81BD")
+    center_align = Alignment(horizontal="center", vertical="center")
+
+    # Write headers
+    for col_idx, column in enumerate(df.columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=column)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+
+    # Write data rows
+    for row_idx, row in enumerate(df.itertuples(index=False), 2):
+        for col_idx, value in enumerate(row, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = Alignment(vertical="top")
+
+    # Auto-adjust column widths
+    for column_cells in ws.columns:
+        length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
+        ws.column_dimensions[column_cells[0].column_letter].width = length + 2
+
+    wb.save(output)
+    st.download_button(
+        label="📥 Download Formatted Excel (.xlsx)",
+        data=output.getvalue(),
+        file_name="cleaned_output.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
