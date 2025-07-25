@@ -1,8 +1,7 @@
-import re
 import pandas as pd
 import streamlit as st
 from io import StringIO, BytesIO
-from openpyxl import Workbook
+from openpyxl.workbook import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
@@ -26,13 +25,12 @@ if uploaded_file:
     def split_name_quantity(name):
         if pd.isna(name):
             return pd.Series([None, None])
-        match = re.search(r'^(\d+)[xX]\s*(.*)', name)
-        if match:
-            return pd.Series([match.group(2).strip(), int(match.group(1))])
-        match = re.search(r'(.*?)(\d+)[xX]$', name)
-        if match:
-            return pd.Series([match.group(1).strip(), int(match.group(2))])
-        return pd.Series([name.strip(), None])  # Leave quantity blank if no number
+        parts = str(name).split()
+        name_parts = [p for p in parts if not p.isdigit()]
+        quantity_parts = [p for p in parts if p.isdigit()]
+        cleaned_name = " ".join(name_parts).strip() if name_parts else None
+        quantity = int(quantity_parts[0]) if quantity_parts else None
+        return pd.Series([cleaned_name, quantity])
 
     if 'Name' in df.columns:
         df[['Name', 'Quantity']] = df['Name'].apply(split_name_quantity)
