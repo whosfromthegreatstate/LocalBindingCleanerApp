@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
 from io import StringIO, BytesIO
-import xlsxwriter
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
 st.title("📄  Local Binding Asana to Production Formatter")
@@ -53,32 +52,13 @@ if uploaded_file:
         mime="text/csv"
     )
 
-    # Create downloadable XLSX with formatting using xlsxwriter
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, sheet_name='Formatted Data', index=False)
-        workbook = writer.book
-        worksheet = writer.sheets['Formatted Data']
-
-        # Define formats
-        header_format = workbook.add_format({
-            'bold': True,
-            'text_wrap': False,
-            'valign': 'vcenter',
-            'align': 'center',
-            'fg_color': '#4F81BD',
-            'font_color': 'white'
-        })
-
-        # Apply formats
-        for col_num, value in enumerate(df.columns.values):
-            worksheet.write(0, col_num, value, header_format)
-            max_width = max(df[value].astype(str).map(len).max(), len(value)) + 2
-            worksheet.set_column(col_num, col_num, max_width)
-
+    # Create downloadable XLSX without using unsupported libraries
+    xlsx_output = BytesIO()
+    with pd.ExcelWriter(xlsx_output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Formatted Data")
     st.download_button(
-        label="📥 Download Formatted Excel (.xlsx)",
-        data=output.getvalue(),
+        label="📥 Download Excel (.xlsx)",
+        data=xlsx_output.getvalue(),
         file_name="cleaned_output.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
