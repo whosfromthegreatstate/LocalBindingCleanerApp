@@ -1,8 +1,7 @@
 import pandas as pd
 import streamlit as st
 from io import StringIO, BytesIO
-from openpyxl.workbook import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
+import xlsxwriter
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
 st.title("📄  Local Binding Asana to Production Formatter")
@@ -54,36 +53,29 @@ if uploaded_file:
         mime="text/csv"
     )
 
-    # Create downloadable XLSX with formatting
+    # Create downloadable XLSX with formatting using xlsxwriter
     output = BytesIO()
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Formatted Data"
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Formatted Data', index=False)
+        workbook = writer.book
+        worksheet = writer.sheets['Formatted Data']
 
-    # Header styles
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill("solid", fgColor="4F81BD")
-    center_align = Alignment(horizontal="center", vertical="center")
+        # Define formats
+        header_format = workbook.add_format({
+            'bold': True,
+            'text_wrap': False,
+            'valign': 'vcenter',
+            'align': 'center',
+            'fg_color': '#4F81BD',
+            'font_color': 'white'
+        })
 
-    # Write headers
-    for col_idx, column in enumerate(df.columns, 1):
-        cell = ws.cell(row=1, column=col_idx, value=column)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = center_align
+        # Apply formats
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+            max_width = max(df[value].astype(str).map(len).max(), len(value)) + 2
+            worksheet.set_column(col_num, col_num, max_width)
 
-    # Write data rows
-    for row_idx, row in enumerate(df.itertuples(index=False), 2):
-        for col_idx, value in enumerate(row, 1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.alignment = Alignment(vertical="top")
-
-    # Auto-adjust column widths
-    for column_cells in ws.columns:
-        length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
-        ws.column_dimensions[column_cells[0].column_letter].width = length + 2
-
-    wb.save(output)
     st.download_button(
         label="📥 Download Formatted Excel (.xlsx)",
         data=output.getvalue(),
