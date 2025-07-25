@@ -46,13 +46,14 @@ if uploaded_file:
     if 'Parent Task' in df.columns and 'Tags' in df.columns and 'Notes' in df.columns:
         parent_lookup = df.set_index('Name')[['Tags', 'Notes']].to_dict('index')
         for idx, row in df.iterrows():
-            parent = row.get('Parent Task')
-            if pd.notna(parent) and parent in parent_lookup:
-                parent_tags = parent_lookup[parent].get('Tags') or ''
-                parent_notes = parent_lookup[parent].get('Notes') or ''
+            parent_name = row.get('Parent Task')
+            if pd.notna(parent_name):
+                parent_data = parent_lookup.get(parent_name, {})
 
-                child_tags = row.get('Tags') or ''
-                child_notes = row.get('Notes') or ''
+                parent_tags = parent_data.get('Tags') if parent_data else ''
+                parent_notes = parent_data.get('Notes') if parent_data else ''
+                child_tags = row.get('Tags') if pd.notna(row.get('Tags')) else ''
+                child_notes = row.get('Notes') if pd.notna(row.get('Notes')) else ''
 
                 combined_tags = ', '.join(filter(None, [child_tags.strip(), parent_tags.strip()]))
                 combined_notes = '\n'.join(filter(None, [child_notes.strip(), parent_notes.strip()]))
