@@ -42,18 +42,18 @@ if uploaded_file:
         cols.insert(cols.index('Name') + 1, cols.pop(cols.index('Quantity')))
         df = df[cols]
 
-    # Fill Tags and Notes from parent
+    # Correct Fill Tags and Notes from parent
     if 'Parent Task' in df.columns and 'Tags' in df.columns and 'Notes' in df.columns:
-        parent_lookup = df.set_index('Name')[['Tags', 'Notes']].to_dict('index')
+        # Ensure we can match children to parents with stripped names
+        name_to_index = {str(row['Name']).strip(): idx for idx, row in df.iterrows() if pd.notna(row['Name'])}
         for idx, row in df.iterrows():
-            parent_name = row.get('Parent Task')
-            if pd.notna(parent_name):
-                parent_data = parent_lookup.get(parent_name, {})
-
-                parent_tags = parent_data.get('Tags') if parent_data else ''
-                parent_notes = parent_data.get('Notes') if parent_data else ''
-                child_tags = row.get('Tags') if pd.notna(row.get('Tags')) else ''
-                child_notes = row.get('Notes') if pd.notna(row.get('Notes')) else ''
+            parent_name = str(row.get('Parent Task')).strip() if pd.notna(row.get('Parent Task')) else None
+            if parent_name and parent_name in name_to_index:
+                parent_idx = name_to_index[parent_name]
+                parent_tags = df.at[parent_idx, 'Tags'] if pd.notna(df.at[parent_idx, 'Tags']) else ''
+                parent_notes = df.at[parent_idx, 'Notes'] if pd.notna(df.at[parent_idx, 'Notes']) else ''
+                child_tags = row['Tags'] if pd.notna(row['Tags']) else ''
+                child_notes = row['Notes'] if pd.notna(row['Notes']) else ''
 
                 combined_tags = ', '.join(filter(None, [child_tags.strip(), parent_tags.strip()]))
                 combined_notes = '\n'.join(filter(None, [child_notes.strip(), parent_notes.strip()]))
