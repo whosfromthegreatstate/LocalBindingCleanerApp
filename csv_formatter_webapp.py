@@ -7,7 +7,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
 st.title("📄  Local Binding Asana to Production Formatter")
-st.markdown("Upload your `.csv` file below. The app will clean the data and show a preview before download. (version 2.1)")
+st.markdown("Upload your `.csv` file below. The app will clean the data and show a preview before download.")
 
 uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
 
@@ -48,9 +48,9 @@ if uploaded_file:
         for idx, row in df.iterrows():
             parent_name = row['Parent Task']
             if pd.notna(parent_name) and parent_name in parent_info:
-                if pd.isna(row['Tags']):
+                if pd.isna(row['Tags']) or row['Tags'] == '':
                     df.at[idx, 'Tags'] = parent_info[parent_name].get('Tags')
-                if pd.isna(row['Notes']):
+                if pd.isna(row['Notes']) or row['Notes'] == '':
                     df.at[idx, 'Notes'] = parent_info[parent_name].get('Notes')
 
     # Preview cleaned data
