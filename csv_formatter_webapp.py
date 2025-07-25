@@ -42,24 +42,32 @@ if uploaded_file:
         cols.insert(cols.index('Name') + 1, cols.pop(cols.index('Quantity')))
         df = df[cols]
 
-    # Correct Fill Tags and Notes from parent
-    if 'Parent Task' in df.columns and 'Tags' in df.columns and 'Notes' in df.columns:
-        # Ensure we can match children to parents with stripped names
-        name_to_index = {str(row['Name']).strip(): idx for idx, row in df.iterrows() if pd.notna(row['Name'])}
-        for idx, row in df.iterrows():
-            parent_name = str(row.get('Parent Task')).strip() if pd.notna(row.get('Parent Task')) else None
-            if parent_name and parent_name in name_to_index:
-                parent_idx = name_to_index[parent_name]
-                parent_tags = df.at[parent_idx, 'Tags'] if pd.notna(df.at[parent_idx, 'Tags']) else ''
-                parent_notes = df.at[parent_idx, 'Notes'] if pd.notna(df.at[parent_idx, 'Notes']) else ''
-                child_tags = row['Tags'] if pd.notna(row['Tags']) else ''
-                child_notes = row['Notes'] if pd.notna(row['Notes']) else ''
+    # New approach: Inherit Tags and Notes recursively from Parent Task chain
+    if {'Parent Task', 'Name', 'Tags', 'Notes'}.issubset(df.columns):
+        df['Tags'] = df['Tags'].fillna('')
+        df['Notes'] = df['Notes'].fillna('')
 
-                combined_tags = ', '.join(filter(None, [child_tags.strip(), parent_tags.strip()]))
-                combined_notes = '\n'.join(filter(None, [child_notes.strip(), parent_notes.strip()]))
+        name_to_row = df.set_index('Name').to_dict('index')
 
-                df.at[idx, 'Tags'] = combined_tags
-                df.at[idx, 'Notes'] = combined_notes
+        def get_inherited(field, name, visited=None):
+            if visited is None:
+                visited = set()
+            if name in visited:
+                return ''
+            visited.add(name)
+            row = name_to_row.get(name)
+            if not row:
+                return ''
+            inherited = row.get(field, '') or ''
+            parent = row.get('Parent Task')
+            if pd.notna(parent):
+                inherited_parent = get_inherited(field, parent, visited)
+                parts = list(filter(None, [inherited.strip(), inherited_parent.strip()]))
+                return ', '.join(dict.fromkeys(', '.join(parts).split(', '))) if field == 'Tags' else '\n'.join(parts)
+            return inherited
+
+        df['Tags'] = df['Name'].apply(lambda name: get_inherited('Tags', name))
+        df['Notes'] = df['Name'].apply(lambda name: get_inherited('Notes', name))
 
     # Preview cleaned data
     st.subheader("🔍 Preview of Cleaned Data")
