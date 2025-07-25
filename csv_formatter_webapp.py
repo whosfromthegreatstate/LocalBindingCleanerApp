@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from io import StringIO, BytesIO
+from io import BytesIO
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
 st.title("📄  Local Binding Asana to Production Formatter")
@@ -52,10 +52,28 @@ if uploaded_file:
         mime="text/csv"
     )
 
-    # Create downloadable XLSX without using unsupported libraries
+    # Prepare Excel with multiple sheets
     xlsx_output = BytesIO()
     with pd.ExcelWriter(xlsx_output, engine="openpyxl") as writer:
+        # Sheet 1: Full cleaned data
         df.to_excel(writer, index=False, sheet_name="Formatted Data")
+
+        # Sheet 2: Filtered & sorted copy
+        filtered_df = df[df['Projects'].isna()] if 'Projects' in df.columns else df.copy()
+        filtered_df = filtered_df.sort_values(by='Name', ascending=False)
+        filtered_df.to_excel(writer, index=False, sheet_name="Filtered View")
+
+        # Sheet 3: Pivot summary of sizes (if present)
+        size_counts = pd.DataFrame()
+        if 'Name' in df.columns:
+            keywords = ['small', 'medium', 'large']
+            for key in keywords:
+                count = df[df['Name'].str.lower().str.contains(key, na=False)]['Quantity'].sum()
+                size_counts.at[0, key.title()] = count if pd.notna(count) else 0
+            size_counts = size_counts.T.reset_index()
+            size_counts.columns = ['Size', 'Total Quantity']
+            size_counts.to_excel(writer, index=False, sheet_name="Pivot Summary")
+
     st.download_button(
         label="📥 Download Excel (.xlsx)",
         data=xlsx_output.getvalue(),
