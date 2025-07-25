@@ -48,10 +48,17 @@ if uploaded_file:
         for idx, row in df.iterrows():
             parent_name = row['Parent Task']
             if pd.notna(parent_name) and parent_name in parent_info:
-                if pd.isna(row['Tags']) or row['Tags'] == '':
-                    df.at[idx, 'Tags'] = parent_info[parent_name].get('Tags')
-                if pd.isna(row['Notes']) or row['Notes'] == '':
-                    df.at[idx, 'Notes'] = parent_info[parent_name].get('Notes')
+                parent_tags = parent_info[parent_name].get('Tags', '')
+                parent_notes = parent_info[parent_name].get('Notes', '')
+
+                child_tags = row['Tags'] if pd.notna(row['Tags']) else ''
+                child_notes = row['Notes'] if pd.notna(row['Notes']) else ''
+
+                combined_tags = ', '.join(filter(None, [child_tags, parent_tags]))
+                combined_notes = '\n'.join(filter(None, [child_notes, parent_notes]))
+
+                df.at[idx, 'Tags'] = combined_tags
+                df.at[idx, 'Notes'] = combined_notes
 
     # Preview cleaned data
     st.subheader("🔍 Preview of Cleaned Data")
