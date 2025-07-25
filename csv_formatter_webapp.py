@@ -70,7 +70,7 @@ if uploaded_file:
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal='center')
 
-        def apply_table_filter(worksheet, df):
+        def apply_table_filter(worksheet):
             tab = Table(displayName="FilteredTable", ref=worksheet.dimensions)
             style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
                                    showLastColumn=False, showRowStripes=True, showColumnStripes=False)
@@ -97,12 +97,12 @@ if uploaded_file:
 
         # Sheet 2: Filtered & sorted copy
         filtered_df = df[df['Projects'].isna()] if 'Projects' in df.columns else df.copy()
-        filtered_df = filtered_df.sort_values(by='Name', ascending=False)
+        filtered_df = filtered_df.sort_values(by='Name', ascending=False, key=lambda col: col.str.lower())
         filtered_df.to_excel(writer, index=False, sheet_name="Filtered View")
         ws2 = writer.book["Filtered View"]
         autofit_columns(ws2)
         style_headers(ws2)
-        apply_table_filter(ws2, filtered_df)
+        apply_table_filter(ws2)
         hide_columns(ws2, ['A','B','G','H','I','J','O','P'])
 
         # Sheet 3: Pivot summary of sizes (if present)
