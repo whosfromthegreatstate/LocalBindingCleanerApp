@@ -7,7 +7,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
 st.title("📄  Local Binding Asana to Production Formatter")
-st.markdown("Upload your `.csv` file below. The app will clean the data and show a preview before download.")
+st.markdown("Upload your `.csv` file below. The app will clean the data and show a preview before download. (version 2.1)")
 
 uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
 
