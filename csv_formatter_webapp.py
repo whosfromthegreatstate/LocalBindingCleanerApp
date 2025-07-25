@@ -42,18 +42,20 @@ if uploaded_file:
         cols.insert(cols.index('Name') + 1, cols.pop(cols.index('Quantity')))
         df = df[cols]
 
+    # Fill Tags and Notes from parent
+    if 'Parent Task' in df.columns and 'Tags' in df.columns and 'Notes' in df.columns:
+        parent_info = df.set_index('Name')[['Tags', 'Notes']].to_dict('index')
+        for idx, row in df.iterrows():
+            parent_name = row['Parent Task']
+            if pd.notna(parent_name) and parent_name in parent_info:
+                if pd.isna(row['Tags']):
+                    df.at[idx, 'Tags'] = parent_info[parent_name].get('Tags')
+                if pd.isna(row['Notes']):
+                    df.at[idx, 'Notes'] = parent_info[parent_name].get('Notes')
+
     # Preview cleaned data
     st.subheader("🔍 Preview of Cleaned Data")
     st.dataframe(df, use_container_width=True)
-
-    # Create downloadable CSV
-    csv = df.to_csv(index=False)
-    st.download_button(
-        label="📥 Download Cleaned CSV",
-        data=csv,
-        file_name="cleaned_output.csv",
-        mime="text/csv"
-    )
 
     # Prepare Excel with multiple sheets and formatting
     xlsx_output = BytesIO()
@@ -90,7 +92,7 @@ if uploaded_file:
             projects_cell = row[df.columns.get_loc('Projects')] if 'Projects' in df.columns else None
             name_cell = row[df.columns.get_loc('Name')] if 'Name' in df.columns else None
             if projects_cell and projects_cell.value == "Local Binding Shop Orders" and name_cell:
-                name_cell.font = Font(bold=True, size=12, color="FFFFFF")
+                name_cell.font = Font(bold=True, size=14, color="FFFFFF")
                 name_cell.fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
 
         # Sheet 2: Filtered & sorted copy
