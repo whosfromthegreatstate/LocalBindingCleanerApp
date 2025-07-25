@@ -41,75 +41,76 @@ if uploaded_file:
     if 'Quantity' in cols:
         cols.insert(cols.index('Name') + 1, cols.pop(cols.index('Quantity')))
         df = df[cols]
-# Replace the inheritance section (lines ~35-65) with this corrected version:
 
-if {'Parent task', 'Name', 'Tags', 'Notes'}.issubset(df.columns):
-    # Clean up the data first
-    df['Tags'] = df['Tags'].fillna('').astype(str)
-    df['Notes'] = df['Notes'].fillna('').astype(str)
-    df['Parent task'] = df['Parent task'].fillna('').astype(str)
-    
-    # Create a mapping of names to their data for easy lookup
-    name_to_data = {}
-    for _, row in df.iterrows():
-        name_to_data[row['Name']] = {
-            'tags': row['Tags'],
-            'notes': row['Notes'],
-            'parent': row['Parent task'] if row['Parent task'] else None
-        }
-    
-    def get_parent_tags_and_notes(child_name, visited=None):
-        """Recursively collect all parent tags and notes"""
-        if visited is None:
-            visited = set()
+    # Fixed parent-child inheritance logic
+    if {'Parent task', 'Name', 'Tags', 'Notes'}.issubset(df.columns):
+        # Clean up the data first
+        df['Tags'] = df['Tags'].fillna('').astype(str)
+        df['Notes'] = df['Notes'].fillna('').astype(str)
+        df['Parent task'] = df['Parent task'].fillna('').astype(str)
         
-        if child_name in visited or child_name not in name_to_data:
-            return [], []
+        # Create a mapping of names to their data for easy lookup
+        name_to_data = {}
+        for _, row in df.iterrows():
+            name_to_data[row['Name']] = {
+                'tags': row['Tags'],
+                'notes': row['Notes'],
+                'parent': row['Parent task'] if row['Parent task'] else None
+            }
         
-        visited.add(child_name)
-        child_data = name_to_data[child_name]
-        parent_name = child_data['parent']
+        def get_parent_tags_and_notes(child_name, visited=None):
+            """Recursively collect all parent tags and notes"""
+            if visited is None:
+                visited = set()
+            
+            if child_name in visited or child_name not in name_to_data:
+                return [], []
+            
+            visited.add(child_name)
+            child_data = name_to_data[child_name]
+            parent_name = child_data['parent']
+            
+            all_tags = []
+            all_notes = []
+            
+            # If this child has a parent, get parent's inherited values first
+            if parent_name and parent_name in name_to_data:
+                parent_tags, parent_notes = get_parent_tags_and_notes(parent_name, visited)
+                all_tags.extend(parent_tags)
+                all_notes.extend(parent_notes)
+                
+                # Add the immediate parent's own tags and notes
+                parent_data = name_to_data[parent_name]
+                if parent_data['tags'] and parent_data['tags'].strip():
+                    all_tags.extend([tag.strip() for tag in parent_data['tags'].split(',') if tag.strip()])
+                if parent_data['notes'] and parent_data['notes'].strip():
+                    all_notes.append(parent_data['notes'])
+            
+            return all_tags, all_notes
         
-        all_tags = []
-        all_notes = []
-        
-        # If this child has a parent, get parent's inherited values first
-        if parent_name and parent_name in name_to_data:
-            parent_tags, parent_notes = get_parent_tags_and_notes(parent_name, visited)
-            all_tags.extend(parent_tags)
-            all_notes.extend(parent_notes)
-            
-            # Add the immediate parent's own tags and notes
-            parent_data = name_to_data[parent_name]
-            if parent_data['tags']:
-                all_tags.extend([tag.strip() for tag in parent_data['tags'].split(',') if tag.strip()])
-            if parent_data['notes']:
-                all_notes.append(parent_data['notes'])
-        
-        return all_tags, all_notes
-    
-    # Apply inheritance to each child row
-    for idx, row in df.iterrows():
-        if row['Parent task']:  # This is a child row
-            parent_tags, parent_notes = get_parent_tags_and_notes(row['Name'])
-            
-            # Combine child's existing values with inherited parent values
-            child_existing_tags = [tag.strip() for tag in row['Tags'].split(',') if tag.strip()] if row['Tags'] else []
-            child_existing_notes = [row['Notes']] if row['Notes'] else []
-            
-            # Combine all tags (remove duplicates while preserving order)
-            all_tags = child_existing_tags + parent_tags
-            unique_tags = []
-            for tag in all_tags:
-                if tag not in unique_tags:
-                    unique_tags.append(tag)
-            
-            # Combine all notes
-            all_notes = child_existing_notes + parent_notes
-            
-            # Update the dataframe
-            df.at[idx, 'Tags'] = ', '.join(unique_tags) if unique_tags else ''
-            df.at[idx, 'Notes'] = '\n'.join(filter(None, all_notes)) if all_notes else ''
+        # Apply inheritance to each child row
+        for idx, row in df.iterrows():
+            if row['Parent task'] and row['Parent task'].strip():  # This is a child row
+                parent_tags, parent_notes = get_parent_tags_and_notes(row['Name'])
+                
+                # Combine child's existing values with inherited parent values
+                child_existing_tags = [tag.strip() for tag in row['Tags'].split(',') if tag.strip()] if row['Tags'] and row['Tags'].strip() else []
+                child_existing_notes = [row['Notes']] if row['Notes'] and row['Notes'].strip() else []
+                
+                # Combine all tags (remove duplicates while preserving order)
+                all_tags = child_existing_tags + parent_tags
+                unique_tags = []
+                for tag in all_tags:
+                    if tag not in unique_tags:
+                        unique_tags.append(tag)
+                
+                # Combine all notes
+                all_notes = child_existing_notes + parent_notes
+                
+                # Update the dataframe
+                df.at[idx, 'Tags'] = ', '.join(unique_tags) if unique_tags else ''
+                df.at[idx, 'Notes'] = '\n'.join(filter(None, all_notes)) if all_notes else ''
+
     # Preview cleaned data
     st.subheader("🔍 Preview of Cleaned Data")
     st.dataframe(df, use_container_width=True)
