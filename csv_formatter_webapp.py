@@ -1,8 +1,9 @@
 import pandas as pd
 import streamlit as st
 from io import BytesIO
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
 st.set_page_config(page_title="Local Binding Formatter", layout="centered")
 st.title("📄  Local Binding Asana to Production Formatter")
@@ -67,11 +68,30 @@ if uploaded_file:
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal='center')
 
+        def apply_table_filter(worksheet, df):
+            tab = Table(displayName="FilteredTable", ref=worksheet.dimensions)
+            style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
+                                   showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+            tab.tableStyleInfo = style
+            worksheet.add_table(tab)
+
+        def hide_columns(worksheet, columns_to_hide):
+            for col_letter in columns_to_hide:
+                worksheet.column_dimensions[col_letter].hidden = True
+
         # Sheet 1: Full cleaned data
         df.to_excel(writer, index=False, sheet_name="Formatted Data")
         ws1 = writer.book["Formatted Data"]
         autofit_columns(ws1)
         style_headers(ws1)
+
+        # Apply conditional formatting to rows with "Local Binding Shop Orders" in Projects column
+        for row in ws1.iter_rows(min_row=2, max_row=ws1.max_row):
+            projects_cell = row[df.columns.get_loc('Projects')] if 'Projects' in df.columns else None
+            name_cell = row[df.columns.get_loc('Name')] if 'Name' in df.columns else None
+            if projects_cell and projects_cell.value == "Local Binding Shop Orders" and name_cell:
+                name_cell.font = Font(bold=True, size=12, color="FFFFFF")
+                name_cell.fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
 
         # Sheet 2: Filtered & sorted copy
         filtered_df = df[df['Projects'].isna()] if 'Projects' in df.columns else df.copy()
@@ -80,6 +100,8 @@ if uploaded_file:
         ws2 = writer.book["Filtered View"]
         autofit_columns(ws2)
         style_headers(ws2)
+        apply_table_filter(ws2, filtered_df)
+        hide_columns(ws2, ['A','B','G','H','I','J','O','P'])
 
         # Sheet 3: Pivot summary of sizes (if present)
         size_counts = pd.DataFrame()
