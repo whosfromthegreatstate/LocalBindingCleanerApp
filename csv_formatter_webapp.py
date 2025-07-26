@@ -141,8 +141,8 @@ if uploaded_file:
 
         # Apply conditional formatting to rows with "Local Binding Shop Orders" in Projects column
         for row in ws1.iter_rows(min_row=2, max_row=ws1.max_row):
-            projects_cell = row[df.columns.get_loc('Projects')] if 'Projects' in df.columns else None
-            name_cell = row[df.columns.get_loc('Name')] if 'Name' in df.columns else None
+            projects_cell = row[df_formatted.columns.get_loc('Projects')] if 'Projects' in df_formatted.columns else None
+            name_cell = row[df_formatted.columns.get_loc('Name')] if 'Name' in df_formatted.columns else None
             if projects_cell and projects_cell.value == "Local Binding Shop Orders" and name_cell:
                 name_cell.font = Font(bold=True, size=14, color="FFFFFF")
                 name_cell.fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
