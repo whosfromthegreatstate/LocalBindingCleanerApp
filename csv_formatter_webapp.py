@@ -122,10 +122,22 @@ if uploaded_file:
                 worksheet.column_dimensions[col_letter].hidden = True
 
         # Sheet 1: Full cleaned data
-        df.to_excel(writer, index=False, sheet_name="Formatted Data")
+        # Swap columns D and E (assuming D is index 3 and E is index 4)
+        if len(df.columns) > 4:
+            cols = df.columns.tolist()
+            cols[3], cols[4] = cols[4], cols[3]  # Swap positions of columns D and E
+            df_formatted = df[cols]
+        else:
+            df_formatted = df.copy()
+            
+        df_formatted.to_excel(writer, index=False, sheet_name="Formatted Data")
         ws1 = writer.book["Formatted Data"]
         autofit_columns(ws1)
         style_headers(ws1)
+        
+        # Hide columns G, H, I, O, P (indices 6, 7, 8, 14, 15)
+        columns_to_hide = ['G', 'H', 'I', 'O', 'P']
+        hide_columns(ws1, columns_to_hide)
 
         # Apply conditional formatting to rows with "Local Binding Shop Orders" in Projects column
         for row in ws1.iter_rows(min_row=2, max_row=ws1.max_row):
