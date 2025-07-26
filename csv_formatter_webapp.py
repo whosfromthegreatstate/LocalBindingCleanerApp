@@ -104,8 +104,8 @@ if uploaded_file:
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal='center')
 
-        def apply_table_filter(worksheet):
-            tab = Table(displayName="FilteredTable", ref=worksheet.dimensions)
+        def apply_table_filter(worksheet, table_name="FilteredTable"):
+            tab = Table(displayName=table_name, ref=worksheet.dimensions)
             style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
                                    showLastColumn=False, showRowStripes=True, showColumnStripes=False)
             tab.tableStyleInfo = style
@@ -136,7 +136,7 @@ if uploaded_file:
         ws2 = writer.book["Filtered View"]
         autofit_columns(ws2)
         style_headers(ws2)
-        apply_table_filter(ws2)
+        apply_table_filter(ws2, "FilteredViewTable")
         hide_columns(ws2, ['A','B','G','H','I','J','O','P'])
 
         # Sheet 3: Pivot summary of sizes (if present)
@@ -230,14 +230,14 @@ if uploaded_file:
                 ws4 = writer.book["Detailed Analysis"]
                 autofit_columns(ws4)
                 style_headers(ws4)
-                apply_table_filter(ws4)
+                apply_table_filter(ws4, "DetailedAnalysisTable")
                 
                 # Write summary sheet
                 final_summary.to_excel(writer, index=False, sheet_name="Filterable Summary")
                 ws5 = writer.book["Filterable Summary"]
                 autofit_columns(ws5)
                 style_headers(ws5)
-                apply_table_filter(ws5)
+                apply_table_filter(ws5, "FilterableSummaryTable")
 
     st.download_button(
         label="📥 Download Excel (.xlsx)",
