@@ -96,8 +96,14 @@ if uploaded_file:
     with pd.ExcelWriter(xlsx_output, engine="openpyxl") as writer:
         def autofit_columns(worksheet):
             for column_cells in worksheet.columns:
+                column_letter = get_column_letter(column_cells[0].column)
                 max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
-                worksheet.column_dimensions[get_column_letter(column_cells[0].column)].width = max_length + 2
+                
+                # Special handling for Notes column - limit to 25 characters width
+                if len(column_cells) > 0 and column_cells[0].value == 'Notes':
+                    worksheet.column_dimensions[column_letter].width = 25
+                else:
+                    worksheet.column_dimensions[column_letter].width = max_length + 2
 
         def style_headers(worksheet):
             for cell in worksheet[1]:
@@ -155,10 +161,17 @@ if uploaded_file:
 
         # Sheet 4: Detailed Analysis with filtering capabilities
         if all(col in df.columns for col in ['Name', 'Section/Column', 'Tags', 'Quantity']):
-            # Create detailed analysis dataframe
+            # Create detailed analysis dataframe - filter out completed items
             analysis_data = []
             
             for _, row in df.iterrows():
+                # Skip if bindings are built or completed
+                section_col = str(row['Section/Column']).lower() if pd.notna(row['Section/Column']) else ''
+                completed_at = str(row['Completed At']) if 'Completed At' in df.columns and pd.notna(row['Completed At']) else ''
+                
+                if 'bindings built' in section_col or completed_at.strip():
+                    continue
+                    
                 if pd.notna(row['Quantity']) and row['Quantity'] > 0:
                     # Extract size from name
                     name_lower = str(row['Name']).lower()
@@ -201,7 +214,7 @@ if uploaded_file:
             if analysis_data:
                 analysis_df = pd.DataFrame(analysis_data)
                 
-                # Create summary pivot tables
+                # Create summary pivot tables (only Overall and Size by Color)
                 summary_data = []
                 
                 # Overall size summary
@@ -216,13 +229,7 @@ if uploaded_file:
                 size_color_summary['Subcategory'] = size_color_summary['Size'] + ' - ' + size_color_summary['Color/Pad Type']
                 summary_data.append(size_color_summary[['Category', 'Subcategory', 'Quantity']])
                 
-                # Section summary
-                section_summary = analysis_df.groupby(['Section/Column', 'Size'])['Quantity'].sum().reset_index()
-                section_summary['Category'] = 'By Section'
-                section_summary['Subcategory'] = section_summary['Section/Column'] + ' - ' + section_summary['Size']
-                summary_data.append(section_summary[['Category', 'Subcategory', 'Quantity']])
-                
-                # Combine all summaries
+                # Combine summaries
                 final_summary = pd.concat(summary_data, ignore_index=True)
                 
                 # Write detailed analysis sheet
