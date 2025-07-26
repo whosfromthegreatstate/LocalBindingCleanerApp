@@ -153,6 +153,92 @@ if uploaded_file:
             autofit_columns(ws3)
             style_headers(ws3)
 
+        # Sheet 4: Detailed Analysis with filtering capabilities
+        if all(col in df.columns for col in ['Name', 'Section/Column', 'Tags', 'Quantity']):
+            # Create detailed analysis dataframe
+            analysis_data = []
+            
+            for _, row in df.iterrows():
+                if pd.notna(row['Quantity']) and row['Quantity'] > 0:
+                    # Extract size from name
+                    name_lower = str(row['Name']).lower()
+                    size = 'Unknown'
+                    if 'small' in name_lower or 'sm' in name_lower:
+                        size = 'Small'
+                    elif 'medium' in name_lower or 'med' in name_lower:
+                        size = 'Medium'
+                    elif 'large' in name_lower or 'lrg' in name_lower:
+                        size = 'Large'
+                    
+                    # Extract color/pad type from tags
+                    tags = str(row['Tags']).lower() if pd.notna(row['Tags']) else ''
+                    color = 'No Color Specified'
+                    
+                    if 'purple' in tags:
+                        color = 'Purple Pads'
+                    elif 'black' in tags:
+                        color = 'Black Pads'
+                    elif 'blue' in tags or 'cerulean' in tags:
+                        color = 'Blue Pads'
+                    elif 'red' in tags or 'candy red' in tags:
+                        color = 'Red Pads'
+                    elif 'white' in tags or 'snow' in tags:
+                        color = 'White Pads'
+                    elif 'green' in tags:
+                        color = 'Green Pads'
+                    
+                    analysis_data.append({
+                        'Section/Column': row['Section/Column'] if pd.notna(row['Section/Column']) else 'No Section',
+                        'Parent Name': row['Parent task'] if pd.notna(row['Parent task']) and row['Parent task'] else row['Name'],
+                        'Item Name': row['Name'],
+                        'Size': size,
+                        'Color/Pad Type': color,
+                        'Quantity': row['Quantity'],
+                        'Tags': row['Tags'] if pd.notna(row['Tags']) else '',
+                        'Notes': row['Notes'] if pd.notna(row['Notes']) else ''
+                    })
+            
+            if analysis_data:
+                analysis_df = pd.DataFrame(analysis_data)
+                
+                # Create summary pivot tables
+                summary_data = []
+                
+                # Overall size summary
+                size_summary = analysis_df.groupby('Size')['Quantity'].sum().reset_index()
+                size_summary['Category'] = 'Overall Total'
+                size_summary['Subcategory'] = size_summary['Size']
+                summary_data.append(size_summary[['Category', 'Subcategory', 'Quantity']])
+                
+                # Size by color summary
+                size_color_summary = analysis_df.groupby(['Size', 'Color/Pad Type'])['Quantity'].sum().reset_index()
+                size_color_summary['Category'] = 'Size by Color'
+                size_color_summary['Subcategory'] = size_color_summary['Size'] + ' - ' + size_color_summary['Color/Pad Type']
+                summary_data.append(size_color_summary[['Category', 'Subcategory', 'Quantity']])
+                
+                # Section summary
+                section_summary = analysis_df.groupby(['Section/Column', 'Size'])['Quantity'].sum().reset_index()
+                section_summary['Category'] = 'By Section'
+                section_summary['Subcategory'] = section_summary['Section/Column'] + ' - ' + section_summary['Size']
+                summary_data.append(section_summary[['Category', 'Subcategory', 'Quantity']])
+                
+                # Combine all summaries
+                final_summary = pd.concat(summary_data, ignore_index=True)
+                
+                # Write detailed analysis sheet
+                analysis_df.to_excel(writer, index=False, sheet_name="Detailed Analysis")
+                ws4 = writer.book["Detailed Analysis"]
+                autofit_columns(ws4)
+                style_headers(ws4)
+                apply_table_filter(ws4)
+                
+                # Write summary sheet
+                final_summary.to_excel(writer, index=False, sheet_name="Filterable Summary")
+                ws5 = writer.book["Filterable Summary"]
+                autofit_columns(ws5)
+                style_headers(ws5)
+                apply_table_filter(ws5)
+
     st.download_button(
         label="📥 Download Excel (.xlsx)",
         data=xlsx_output.getvalue(),
